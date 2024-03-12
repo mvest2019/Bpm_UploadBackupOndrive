@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Configuration;
 using System.IO;
 using System.IO.Compression;
 using Google.Apis.Auth.OAuth2;
@@ -14,9 +15,9 @@ namespace UploadProductionBackupOnGoogleDrive
         static void Main(string[] args)
         {
             Console.WriteLine("Started");
-            string credentialsFilePath = @"D:\Environments\Production database backup\Crediantals.json";
-            string folderId = "1Kzjqgf3ZLaVUoZT1AEaPqVicUeFGSEX1";
-            string folderPath = @"D:\Environments\Production database backup\BPMProd"; // Change this to your folder path
+            string credentialsFilePath = ConfigurationManager.AppSettings["credentialsFilePath"];
+            string folderId = ConfigurationManager.AppSettings["folderId"];
+            string folderPath = ConfigurationManager.AppSettings["folderPath"];
             UploadBackupFilesToGoogleDrive(credentialsFilePath, folderId, folderPath);
             Console.WriteLine("End");
         }
