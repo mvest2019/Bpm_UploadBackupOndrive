@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Configuration;
+using System.Data.SqlClient;
+using System.Data;
 using System.IO;
 using System.IO.Compression;
 using Google.Apis.Auth.OAuth2;
@@ -12,8 +14,11 @@ namespace UploadProductionBackupOnGoogleDrive
 {
     class Program
     {
+        public static string ConnectionStrings = ConfigurationManager.AppSettings.Get("ConnectionStrings");
         static void Main(string[] args)
         {
+            Guid sessionid = Guid.NewGuid();
+            UpdateProcessStatus(38, sessionid, DateTime.Now, null, "START");
             Console.WriteLine("Started");
             string credentialsFilePath = ConfigurationManager.AppSettings["credentialsFilePath"];
             string folderId = ConfigurationManager.AppSettings["folderId"];
@@ -26,7 +31,7 @@ namespace UploadProductionBackupOnGoogleDrive
         {
             try
             {
-                // Load credentials from the JSON key file
+                // Load credentials fro  m the JSON key file
                 GoogleCredential credential;
                 using (var stream = new FileStream(credentialsFilePath, FileMode.Open))
                 {
@@ -107,6 +112,22 @@ namespace UploadProductionBackupOnGoogleDrive
                 mimeType = "application/octet-stream";
             }
             return mimeType;
+        }
+        public static void UpdateProcessStatus(int JobId, Guid sessionId, DateTime? startTime, DateTime? endTime, string status)
+        {
+            using (SqlConnection connection = new SqlConnection(ConnectionStrings))
+            {
+                SqlCommand cmd = new SqlCommand("CreateUpdateJobStatus", connection);
+                cmd.CommandType = CommandType.StoredProcedure;
+                cmd.Parameters.AddWithValue("JobId ", JobId);
+                cmd.Parameters.AddWithValue("SessionId", sessionId);
+                cmd.Parameters.AddWithValue("StartTime", startTime);
+                cmd.Parameters.AddWithValue("EndTime", endTime);
+                cmd.Parameters.AddWithValue("Status", status);
+                connection.Open();
+                cmd.ExecuteNonQuery();
+            }
+           
         }
     }
 }
