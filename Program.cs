@@ -1,8 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Configuration;
-using System.Data.SqlClient;
 using System.Data;
+using System.Data.SqlClient;
 using System.IO;
 using System.IO.Compression;
 using Google.Apis.Auth.OAuth2;
@@ -23,17 +23,17 @@ namespace UploadProductionBackupOnGoogleDrive
             string credentialsFilePath = ConfigurationManager.AppSettings["credentialsFilePath"];
             string folderId = ConfigurationManager.AppSettings["folderId"];
             string folderPath = ConfigurationManager.AppSettings["folderPath"];
-            UploadBackupFilesToGoogleDrive(credentialsFilePath, folderId, folderPath);
+            UploadLatestBackupFileToGoogleDrive(credentialsFilePath, folderId, folderPath);
             UpdateProcessStatus(38, sessionid, null, DateTime.Now, "FINISHED");
             Console.WriteLine("End");
 
         }
 
-        public static void UploadBackupFilesToGoogleDrive(string credentialsFilePath, string folderId, string folderPath)
+        public static void UploadLatestBackupFileToGoogleDrive(string credentialsFilePath, string folderId, string folderPath)
         {
             try
             {
-                // Load credentials fro  m the JSON key file
+                // Load credentials from the JSON key file
                 GoogleCredential credential;
                 using (var stream = new FileStream(credentialsFilePath, FileMode.Open))
                 {
@@ -48,16 +48,16 @@ namespace UploadProductionBackupOnGoogleDrive
                     ApplicationName = "ProductionBackup Upload On Google Drive"
                 });
 
-                // Get all BAK files in the folder
-                string[] bakFiles = Directory.GetFiles(folderPath, "*.bak");
+                // Get the latest BAK file in the folder
+                string latestBakFile = GetLatestBackupFile(folderPath);
 
-                foreach (string bakFile in bakFiles)
+                if (latestBakFile != null)
                 {
                     // Convert BAK file to ZIP format
-                    string zipFilePath = Path.Combine(Path.GetDirectoryName(bakFile), Path.GetFileNameWithoutExtension(bakFile) + ".zip");
+                    string zipFilePath = Path.Combine(Path.GetDirectoryName(latestBakFile), Path.GetFileNameWithoutExtension(latestBakFile) + ".zip");
                     using (var zipArchive = ZipFile.Open(zipFilePath, ZipArchiveMode.Create))
                     {
-                        zipArchive.CreateEntryFromFile(bakFile, Path.GetFileName(bakFile));
+                        zipArchive.CreateEntryFromFile(latestBakFile, Path.GetFileName(latestBakFile));
                     }
 
                     // Create metadata for the file
@@ -81,7 +81,7 @@ namespace UploadProductionBackupOnGoogleDrive
                         if (uploadResponse != null)
                         {
                             var uploadedFile = request.ResponseBody;
-                            Console.WriteLine($"BAK file '{bakFile}' uploaded successfully as ZIP. File ID: {uploadedFile.Id}");
+                            Console.WriteLine($"BAK file '{latestBakFile}' uploaded successfully as ZIP. File ID: {uploadedFile.Id}");
 
 
                             fileStream.Dispose();
@@ -90,9 +90,13 @@ namespace UploadProductionBackupOnGoogleDrive
                         }
                         else
                         {
-                            Console.WriteLine($"Failed to upload the BAK file '{bakFile}' as ZIP.");
+                            Console.WriteLine($"Failed to upload the BAK file '{latestBakFile}' as ZIP.");
                         }
                     }
+                }
+                else
+                {
+                    Console.WriteLine("No .bak file found in the folder.");
                 }
             }
             catch (Exception ex)
@@ -104,17 +108,24 @@ namespace UploadProductionBackupOnGoogleDrive
         // Function to get MIME type based on file extension
         private static string GetMimeType(string fileName)
         {
-            string mimeType;
-            if (Path.GetExtension(fileName).ToLower() == ".zip")
+            return Path.GetExtension(fileName).ToLower() == ".zip" ? "application/zip" : "application/octet-stream";
+        }
+
+        // Function to get the latest .bak file in the folder
+        private static string GetLatestBackupFile(string folderPath)
+        {
+            string[] bakFiles = Directory.GetFiles(folderPath, "*.bak");
+            if (bakFiles.Length > 0)
             {
-                mimeType = "application/zip";
+                Array.Sort(bakFiles, (a, b) => File.GetLastWriteTime(b).CompareTo(File.GetLastWriteTime(a)));
+                return bakFiles[0]; // Return the latest file
             }
             else
             {
-                mimeType = "application/octet-stream";
+                return null;
             }
-            return mimeType;
         }
+
         public static void UpdateProcessStatus(int JobId, Guid sessionId, DateTime? startTime, DateTime? endTime, string status)
         {
             using (SqlConnection connection = new SqlConnection(ConnectionStrings))
@@ -129,7 +140,6 @@ namespace UploadProductionBackupOnGoogleDrive
                 connection.Open();
                 cmd.ExecuteNonQuery();
             }
-           
         }
     }
 }
