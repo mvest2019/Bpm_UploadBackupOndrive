@@ -86,7 +86,7 @@ namespace UploadProductionBackupOnGoogleDrive
 
                             fileStream.Dispose();
                             // Delete the zip file from the current location
-                            File.Delete(zipFilePath);
+                               File.Delete(zipFilePath);
                         }
                         else
                         {
