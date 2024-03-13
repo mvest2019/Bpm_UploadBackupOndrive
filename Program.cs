@@ -24,7 +24,7 @@ namespace UploadProductionBackupOnGoogleDrive
             string folderId = ConfigurationManager.AppSettings["folderId"];
             string folderPath = ConfigurationManager.AppSettings["folderPath"];
             UploadBackupFilesToGoogleDrive(credentialsFilePath, folderId, folderPath);
-            UpdateProcessStatus(38, sessionid, DateTime.Now, null, "Finished");
+            UpdateProcessStatus(38, sessionid, null, DateTime.Now, "FINISHED");
             Console.WriteLine("End");
 
         }
